@@ -3,5 +3,6 @@
 declare(strict_types=1);
 
 return [
-    'fruit' => [],
+    'fruit' => 'banana',
+    'vegetable' => 'carrot',
 ];
