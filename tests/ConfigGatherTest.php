@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace LoomTest\Config;
 
-use Loom\Config\ConfigAggregator;
+use Loom\Config\ConfigGather;
 use Loom\Config\Exception\InvalidConfigProcessorException;
 use Loom\Config\Exception\InvalidConfigProviderException;
 use LoomTest\Config\Resources\BarConfigProvider;
@@ -17,42 +17,42 @@ use stdClass;
 use function file_exists;
 use function var_export;
 
-class ConfigAggregatorTest extends TestCase
+class ConfigGatherTest extends TestCase
 {
-    public function testConfigAggregatorRisesExceptionIfProviderClassDoesNotExist()
+    public function testConfigGatherRisesExceptionIfProviderClassDoesNotExist()
     {
         $this->expectException(InvalidConfigProviderException::class);
-        new ConfigAggregator(['NonExistentConfigProvider']);
+        new ConfigGather(['NonExistentConfigProvider']);
     }
 
-    public function testConfigAggregatorRisesExceptionIfProviderIsNotCallable()
+    public function testConfigGatherRisesExceptionIfProviderIsNotCallable()
     {
         $this->expectException(InvalidConfigProviderException::class);
-        new ConfigAggregator([stdClass::class]);
+        new ConfigGather([stdClass::class]);
     }
 
-    public function testConfigAggregatorMergesConfigFromProviders()
+    public function testConfigGatherMergesConfigFromProviders()
     {
-        $aggregator = new ConfigAggregator([FooConfigProvider::class, BarConfigProvider::class]);
-        $config = $aggregator->getMergedConfig();
+        $gather = new ConfigGather([FooConfigProvider::class, BarConfigProvider::class]);
+        $config = $gather->getMergedConfig();
         $this->assertEquals(['foo' => 'bar', 'bar' => 'bat'], $config);
     }
 
     public function testProviderCanBeClosure()
     {
-        $aggregator = new ConfigAggregator([
+        $gather = new ConfigGather([
             function () {
                 return ['foo' => 'bar'];
             },
         ]);
-        $config = $aggregator->getMergedConfig();
+        $config = $gather->getMergedConfig();
         $this->assertEquals(['foo' => 'bar'], $config);
     }
 
     public function testProviderRisesExceptionIfClosureReturnNonArray()
     {
         $this->expectException(InvalidConfigProviderException::class);
-        $aggregator = new ConfigAggregator([
+        $gather = new ConfigGather([
             function () {
                 return 'foo';
             },
@@ -61,36 +61,36 @@ class ConfigAggregatorTest extends TestCase
 
     public function testProviderCanBeGenerator()
     {
-        $aggregator = new ConfigAggregator([
+        $gather = new ConfigGather([
             function () {
                 yield ['foo' => 'bar'];
                 yield ['baz' => 'bat'];
             },
         ]);
-        $config = $aggregator->getMergedConfig();
+        $config = $gather->getMergedConfig();
         $this->assertEquals(['foo' => 'bar', 'baz' => 'bat'], $config);
     }
 
-    public function testConfigAggregatorCanCacheConfig()
+    public function testConfigGatherCanCacheConfig()
     {
         vfsStream::setup(__FUNCTION__);
         $cacheFile = vfsStream::url(__FUNCTION__) . '/expressive_config_loader';
-        new ConfigAggregator([
+        new ConfigGather([
             function () {
-                return ['foo' => 'bar', ConfigAggregator::ENABLE_CACHE => true];
+                return ['foo' => 'bar', ConfigGather::ENABLE_CACHE => true];
             }
         ], $cacheFile);
         $this->assertTrue(file_exists($cacheFile));
         $cachedConfig = include $cacheFile;
         $this->assertInternalType('array', $cachedConfig);
-        $this->assertEquals(['foo' => 'bar', ConfigAggregator::ENABLE_CACHE => true], $cachedConfig);
+        $this->assertEquals(['foo' => 'bar', ConfigGather::ENABLE_CACHE => true], $cachedConfig);
     }
 
-    public function testConfigAggregatorCanLoadConfigFromCache()
+    public function testConfigGatherCanLoadConfigFromCache()
     {
         $expected = [
             'foo' => 'bar',
-            ConfigAggregator::ENABLE_CACHE => true,
+            ConfigGather::ENABLE_CACHE => true,
         ];
 
         $root = vfsStream::setup(__FUNCTION__);
@@ -99,45 +99,45 @@ class ConfigAggregatorTest extends TestCase
             ->setContent('<' . '?php return ' . var_export($expected, true) . ';');
         $cacheFile = vfsStream::url(__FUNCTION__ . '/expressive_config_loader');
 
-        $aggregator = new ConfigAggregator([], $cacheFile);
-        $mergedConfig = $aggregator->getMergedConfig();
+        $gather = new ConfigGather([], $cacheFile);
+        $mergedConfig = $gather->getMergedConfig();
 
         $this->assertInternalType('array', $mergedConfig);
         $this->assertEquals($expected, $mergedConfig);
     }
 
-    public function testConfigAggregatorRisesExceptionIfProcessorClassDoesNotExist()
+    public function testConfigGatherRisesExceptionIfProcessorClassDoesNotExist()
     {
         $this->expectException(InvalidConfigProcessorException::class);
-        new ConfigAggregator([], null, ['NonExistentConfigProcessor']);
+        new ConfigGather([], null, ['NonExistentConfigProcessor']);
     }
 
-    public function testConfigAggregatorRisesExceptionIfProcessorIsNotCallable()
+    public function testConfigGatherRisesExceptionIfProcessorIsNotCallable()
     {
         $this->expectException(InvalidConfigProcessorException::class);
-        new ConfigAggregator([], null, [stdClass::class]);
+        new ConfigGather([], null, [stdClass::class]);
     }
 
     public function testProcessorCanBeClosure()
     {
-        $aggregator = new ConfigAggregator([], null, [
+        $gather = new ConfigGather([], null, [
             function (array $config) {
                 return $config + ['processor' => 'closure'];
             },
         ]);
 
-        $config = $aggregator->getMergedConfig();
+        $config = $gather->getMergedConfig();
         $this->assertEquals(['processor' => 'closure'], $config);
     }
 
-    public function testConfigAggregatorCanPostProcessConfiguration()
+    public function testConfigGatherCanPostProcessConfiguration()
     {
-        $aggregator = new ConfigAggregator([
+        $gather = new ConfigGather([
             function () {
                 return ['foo' => 'bar'];
             },
         ], null, [new FooPostProcessor]);
-        $mergedConfig = $aggregator->getMergedConfig();
+        $mergedConfig = $gather->getMergedConfig();
 
         $this->assertEquals(['foo' => 'bar', 'post-processed' => true], $mergedConfig);
     }
